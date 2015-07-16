@@ -1,13 +1,12 @@
 ; Pratica 5 : Interface de teclado matricial
 ; Programador: Francisco Edno
 ;
-; O programa continuamente faz a leitura de um teclado matricial
-; na porta P2 e imprime em um display de 7 segmentos. Esse codigo 
-; nao faz uso de interrupcoes e eh puramente didatico.
+; Sistema de Acesso
 ;
-; A interface com o teclado funciona da seguinte maneira:
-; Aciono cada coluna sequencialmente com zero e faco, leitura da porta p2
-; e decodifico com uma tabela.
+; O programa continuamente faz a leitura de um teclado matricial
+; na porta P2 e imprime em um display de 7 segmentos (Como feedback). 
+; Apos a confirmacao de ENTER (#) os numeros digitados serao comparados
+; com a senha padrao em tabela, ou com a senha na e2prom. Senha de 4 digitos.
 ;
 ; Teclado matricial:
 ; C3: P2.0 | C2: P2.1 | C1: P2.2

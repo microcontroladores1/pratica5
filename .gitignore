@@ -1,2 +1,5 @@
 *.DBK
 *~
+*.SDI
+*.SDF
+*swp
