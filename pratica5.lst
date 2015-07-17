@@ -42,25 +42,25 @@ ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. 
    22:				; EQUATES
    23:				; ****************************************************************************
    24:
-   25:		B      0080	SHD     equ     p0.0
-   26:		B      0081	SHCK    equ     p0.1
-   27:		B      0082	SHLTCH  equ     p0.2
+   25:		B      00B0	SHD     equ     p3.0
+   26:		B      00B1	SHCK    equ     p3.1
+   27:		B      00B2	SHLTCH  equ     p3.2
    28:
    29:				; ****************************************************************************
    30:				; Inicio
    31:				; ****************************************************************************
-   32:	  0000	12 00 08	Main:       call    KeyIn
+   32:	  0000	12 00 0A	Main:       call    KeyIn
    33:	  0003	85 E0 F0	            mov     b, acc
-   34:	  0006	01 00		            ajmp    Main
-   35:
-   36:				; ****************************************************************************
-   37:				; SUB-ROTINAS
-   38:				; ****************************************************************************
-   39:
-   40:				; ----------------------------------------------------------------------------
-   41:				; KeyIn
-   42:				; ----------------------------------------------------------------------------
-   43:				; Faz a leitura do teclado com 'Software Debouncing' para o pressionar e o
+   34:	  0006	11 50		            acall   Display
+   35:	  0008	01 00		            ajmp    Main
+   36:
+   37:				; ****************************************************************************
+   38:				; SUB-ROTINAS
+   39:				; ****************************************************************************
+   40:
+   41:				; ----------------------------------------------------------------------------
+   42:				; KeyIn
+   43:				; ----------------------------------------------------------------------------
 
 ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 2
 
@@ -68,62 +68,62 @@ ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. 
 
  Line  I  Addr  Code            Source
 
-   44:				; liberar da tecla (50 operacoes para cada).
-   45:				; ----------------------------------------------------------------------------
-   46:	  0008	7B 32		KeyIn:      mov     r3, #50     ; Contador para o debouncing
-   47:	  000A	12 00 1F	Back:       call    GetKey      ; Tecla pressionada?
-   48:	  000D	50 F9		            jnc     KeyIn       ; Nao: tentar ler denovo (Pode mudar)
-   49:	  000F	DB F9		            djnz    r3, Back    ; Sim: repete 50 vezes
-   50:	  0011	C0 E0		            push    acc         ; Salva o codigo da tecla
-   51:
-   52:	  0013	7B 32		Back2:      mov     r3, #50     ; Espera a tecla ser liberada novamente
-   53:	  0015	12 00 1F	Back3:      call    GetKey      ; Tecla pressionada?
-   54:	  0018	40 F9		            jc      Back2       ; Sim: Cotinue checkando
-   55:	  001A	DB F9		            djnz    r3, Back3   ; Nao: Repete 50 vezes
-   56:	  001C	D0 E0		            pop     acc         ; Recupera o codigo da tecla
-   57:	  001E	22		            ret                 ; Retorna
-   58:
-   59:				; ---------------------------------------------------------------------------
-   60:				; GetKey
-   61:				; ---------------------------------------------------------------------------
-   62:				; Pega o status do teclado
-   63:				; Retorna: C = 0 se nenhuma tecla foi pressionada
-   64:				;        : C = 1 e o codigo da tecla no ACC caso tenha sido pressionada
-   65:				; ---------------------------------------------------------------------------
-   66:	  001F	74 FD		GetKey:     mov     a, #0FDh         ; Comeca com a coluna 0
-   67:	  0021	7E 03		            mov     r6, #3           ; Usa R6 como contador
-   68:	  0023	F5 A0		Test:       mov     p2, a            ; Ativa uma coluna
-   69:	  0025	FF		            mov     r7, a            ; Salva ACC
-   70:	  0026	E5 A0		            mov     a, p2            ; Agora leio a porta novamente
-   71:	  0028	54 F0		            anl     a, #0F0h         ; Isolo as linhas
-   72:	  002A	B4 F0 07	            cjne    a, #0F0h, KeyHit ; Alguma linha ativa?
-   73:	  002D	EF		            mov     a, r7            ; Nao: va para a proxima coluna
-   74:	  002E	23		            rl      a
-   75:	  002F	DE F2		            djnz    r6, Test
-   76:	  0031	C3		            clr     c                ; Nenuma tecla pressionada :(
-   77:	  0032	80 19		            sjmp    Exit             ; Retorna com c = 0
-   78:
-   79:	  0034	FF		KeyHit:     mov     r7, a            ; Salvo em r7 o scan
-   80:	  0035	74 04		            mov     a, #4            ; Preparacao para o calculo da coluna
-   81:	  0037	C3		            clr     c
-   82:	  0038	9E		            subb    a, r6            ; 3 - R6 = numero da coluna (0:3)
-   83:	  0039	FE		            mov     r6, a            ; Salvo o numero da coluna em R6
-   84:	  003A	EF		            mov     a, r7            ; Restauro o que foi lido da P2
-   85:	  003B	C4		            swap    a                ; Boto as linhas no nibble menor
-   86:
-   87:	  003C	7D 04		            mov     r5, #4
-   88:	  003E	13		Again:      rrc     a                ; Rotaciona ate C = 0
-   89:	  003F	50 05		            jnc     Done             ; Done quando C = 0
-   90:	  0041	0E		            inc     r6
-   91:	  0042	0E		            inc     r6
-   92:	  0043	0E		            inc     r6
-   93:	  0044	DD F8		            djnz    r5, Again
-   94:
-   95:	  0046	BE 0B 02	Done:       cjne    r6, #0Bh, Done2   ; O codigo = 0Bh (11) ?
-   96:	  0049	7E 00		            mov     r6, #0           ; sim: O codigo e o 0
-   97:
-   98:	  004B	D3		Done2:      setb    c                ; C = 1 (tecla pressionada)
-   99:	  004C	EE		            mov     a, r6            ; Codigo no ACC
+   44:				; Faz a leitura do teclado com 'Software Debouncing' para o pressionar e o
+   45:				; liberar da tecla (50 operacoes para cada).
+   46:				; ----------------------------------------------------------------------------
+   47:	  000A	7B 32		KeyIn:      mov     r3, #50     ; Contador para o debouncing
+   48:	  000C	12 00 21	Back:       call    GetKey      ; Tecla pressionada?
+   49:	  000F	50 F9		            jnc     KeyIn       ; Nao: tentar ler denovo (Pode mudar)
+   50:	  0011	DB F9		            djnz    r3, Back    ; Sim: repete 50 vezes
+   51:	  0013	C0 E0		            push    acc         ; Salva o codigo da tecla
+   52:
+   53:	  0015	7B 32		Back2:      mov     r3, #50     ; Espera a tecla ser liberada novamente
+   54:	  0017	12 00 21	Back3:      call    GetKey      ; Tecla pressionada?
+   55:	  001A	40 F9		            jc      Back2       ; Sim: Cotinue checkando
+   56:	  001C	DB F9		            djnz    r3, Back3   ; Nao: Repete 50 vezes
+   57:	  001E	D0 E0		            pop     acc         ; Recupera o codigo da tecla
+   58:	  0020	22		            ret                 ; Retorna
+   59:
+   60:				; ---------------------------------------------------------------------------
+   61:				; GetKey
+   62:				; ---------------------------------------------------------------------------
+   63:				; Pega o status do teclado
+   64:				; Retorna: C = 0 se nenhuma tecla foi pressionada
+   65:				;        : C = 1 e o codigo da tecla no ACC caso tenha sido pressionada
+   66:				; ---------------------------------------------------------------------------
+   67:	  0021	74 FD		GetKey:     mov     a, #0FDh         ; Comeca com a coluna 0
+   68:	  0023	7E 03		            mov     r6, #3           ; Usa R6 como contador
+   69:	  0025	F5 A0		Test:       mov     p2, a            ; Ativa uma coluna
+   70:	  0027	FF		            mov     r7, a            ; Salva ACC
+   71:	  0028	E5 A0		            mov     a, p2            ; Agora leio a porta novamente
+   72:	  002A	54 F0		            anl     a, #0F0h         ; Isolo as linhas
+   73:	  002C	B4 F0 07	            cjne    a, #0F0h, KeyHit ; Alguma linha ativa?
+   74:	  002F	EF		            mov     a, r7            ; Nao: va para a proxima coluna
+   75:	  0030	23		            rl      a
+   76:	  0031	DE F2		            djnz    r6, Test
+   77:	  0033	C3		            clr     c                ; Nenuma tecla pressionada :(
+   78:	  0034	80 19		            sjmp    Exit             ; Retorna com c = 0
+   79:
+   80:	  0036	FF		KeyHit:     mov     r7, a            ; Salvo em r7 o scan
+   81:	  0037	74 04		            mov     a, #4            ; Preparacao para o calculo da coluna
+   82:	  0039	C3		            clr     c
+   83:	  003A	9E		            subb    a, r6            ; 3 - R6 = numero da coluna (0:3)
+   84:	  003B	FE		            mov     r6, a            ; Salvo o numero da coluna em R6
+   85:	  003C	EF		            mov     a, r7            ; Restauro o que foi lido da P2
+   86:	  003D	C4		            swap    a                ; Boto as linhas no nibble menor
+   87:
+   88:	  003E	7D 04		            mov     r5, #4
+   89:	  0040	13		Again:      rrc     a                ; Rotaciona ate C = 0
+   90:	  0041	50 05		            jnc     Done             ; Done quando C = 0
+   91:	  0043	0E		            inc     r6
+   92:	  0044	0E		            inc     r6
+   93:	  0045	0E		            inc     r6
+   94:	  0046	DD F8		            djnz    r5, Again
+   95:
+   96:	  0048	BE 0B 02	Done:       cjne    r6, #0Bh, Done2   ; O codigo = 0Bh (11) ?
+   97:	  004B	7E 00		            mov     r6, #0           ; sim: O codigo e o 0
+   98:
+   99:	  004D	D3		Done2:      setb    c                ; C = 1 (tecla pressionada)
 
 ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 3
 
@@ -131,11 +131,70 @@ ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. 
 
  Line  I  Addr  Code            Source
 
-  100:	  004D	22		Exit:       ret
-  101:
-  102:				; ****************************************************************************
-  103:				            end
-  104:				; ****************************************************************************
+  100:	  004E	EE		            mov     a, r6            ; Codigo no ACC
+  101:	  004F	22		Exit:       ret
+  102:
+  103:				; ---------------------------------------------------------------------------
+  104:				; Display
+  105:				; ---------------------------------------------------------------------------
+  106:				; Imprime no display de 7 segmentos o digito do acumulador. Caso o valor seja
+  107:				; Maior que 9, a rotina faz nada.
+  108:				; ---------------------------------------------------------------------------
+  109:	  0050	C0 E0		Display:    push    acc         ; Salvo o ACC
+  110:	  0052	24 F6		            add     a, #(not 9) ; Preparo para verificar se ACC > 9
+  111:	  0054	D0 E0		            pop     acc         ; Restauro o ACC
+  112:
+  113:	  0056	40 11		            jc      Exit2       ; Acc > 9 ?
+  114:
+  115:	  0058	11 6A		            acall   LKDisp      ; Nao: Boto a decodificacao do display no ACC
+  116:
+  117:	  005A	C2 B2		            clr     SHLTCH      ; Trava o registrador
+  118:
+  119:	  005C	7D 08		            mov     r5, #8      ; Usa r5 como contador
+  120:	  005E	A2 E7		Here:       mov     c, acc.7    ; Pego o bit mais significativo do ACC
+  121:	  0060	92 B0		            mov     SHD, c      ; Envio para o Shift Register
+  122:	  0062	11 79		            acall   CKPulse     ; Pulso de clock para entrar
+  123:	  0064	23		            rl      a           ; Rotaciono para pegar o proximo bit
+  124:	  0065	DD F7		            djnz    r5, Here
+  125:
+  126:	  0067	D2 B2		            setb    SHLTCH      ; Libera o registrador
+  127:
+  128:	  0069	22		Exit2:      ret
+  129:
+  130:				; ---------------------------------------------------------------------------
+  131:				; LKDisp
+  132:				; ---------------------------------------------------------------------------
+  133:				; Look-up Table para decodificacao do display de 7 segmentos.
+  134:				; Retorna: A decodificacao no acumulador.
+  135:				; ---------------------------------------------------------------------------
+  136:	  006A	90 00 6F	LKDisp:     mov     dptr, #DECODING ; Passa o endereco da tabela para o dptr
+  137:	  006D	93		            movc    a,@a+dptr       ; Acessa a Tabela
+  138:
+  139:	  006E	22		            ret                     ; Retorna com o valor no ACC
+  140:
+  141:	  006F	3F 06 5B 4F	DECODING:    db  3Fh, 06h, 5Bh, 4Fh, 66h, 6Dh, 7Dh, 07h, 7Fh, 67h
+	  0073	66 6D 7D 07
+	  0077	7F 67
+  142:
+  143:				; ---------------------------------------------------------------------------
+  144:				; CKPulse
+  145:				; ---------------------------------------------------------------------------
+  146:				; Pulso de clock no registrador de deslocamento
+  147:				; ---------------------------------------------------------------------------
+  148:	  0079	D2 B1		CKPulse:    setb    SHCK
+  149:	  007B	C2 B1		            clr     SHCK
+  150:	  007D	22		            ret
+  151:
+  152:				; ****************************************************************************
+  153:				            end
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 4
+
+
+
+ Line  I  Addr  Code            Source
+
+  154:				; ****************************************************************************
 
 
 
@@ -148,7 +207,7 @@ ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. 
 
 
 
-ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 4
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 5
 
 
 
@@ -164,14 +223,17 @@ SYMBOL				  TYPE     VALUE	LINE
 ??VERSION			  NUMBER    0130
 AC				  BIT	      D6
 ACC				  DATA	      E0
-AGAIN				  CODE	    003E	  88
+AGAIN				  CODE	    0040	  89
 B				  DATA	      F0
-BACK				  CODE	    000A	  47
-BACK2				  CODE	    0013	  52
-BACK3				  CODE	    0015	  53
+BACK				  CODE	    000C	  48
+BACK2				  CODE	    0015	  53
+BACK3				  CODE	    0017	  54
+CKPULSE				  CODE	    0079	 148
 CY				  BIT	      D7
-DONE				  CODE	    0046	  95
-DONE2				  CODE	    004B	  98
+DECODING			  CODE	    006F	 141
+DISPLAY				  CODE	    0050	 109
+DONE				  CODE	    0048	  96
+DONE2				  CODE	    004D	  99
 DPH				  DATA	      83
 DPL				  DATA	      82
 EA				  BIT	      AF
@@ -180,11 +242,13 @@ ET0				  BIT	      A9
 ET1				  BIT	      AB
 EX0				  BIT	      A8
 EX1				  BIT	      AA
-EXIT				  CODE	    004D	 100
+EXIT				  CODE	    004F	 101
+EXIT2				  CODE	    0069	 128
 EXTI0				  CODE	    0003
 EXTI1				  CODE	    0013
 F0				  BIT	      D5
-GETKEY				  CODE	    001F	  66
+GETKEY				  CODE	    0021	  67
+HERE				  CODE	    005E	 120
 IE				  DATA	      A8
 IE0				  BIT	      89
 IE1				  BIT	      8B
@@ -193,8 +257,9 @@ INT1				  BIT	      B3
 IP				  DATA	      B8
 IT0				  BIT	      88
 IT1				  BIT	      8A
-KEYHIT				  CODE	    0034	  79
-KEYIN				  CODE	    0008	  46
+KEYHIT				  CODE	    0036	  80
+KEYIN				  CODE	    000A	  47
+LKDISP				  CODE	    006A	 136
 MAIN				  CODE	    0000	  32
 OV				  BIT	      D2
 P				  BIT	      D0
@@ -204,19 +269,19 @@ P2				  DATA	      A0
 P3				  DATA	      B0
 PCON				  DATA	      87
 PS				  BIT	      BC
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 6
+
+
+
+SYMBOL				  TYPE     VALUE	LINE
+------------------------------------------------------------
 PSW				  DATA	      D0
 PT0				  BIT	      B9
 PT1				  BIT	      BB
 PX0				  BIT	      B8
 PX1				  BIT	      BA
 RB8				  BIT	      9A
-
-ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 5
-
-
-
-SYMBOL				  TYPE     VALUE	LINE
-------------------------------------------------------------
 RD				  BIT	      B7
 REN				  BIT	      9C
 RESET				  CODE	    0000
@@ -226,9 +291,9 @@ RS1				  BIT	      D4
 RXD				  BIT	      B0
 SBUF				  DATA	      99
 SCON				  DATA	      98
-SHCK				  NUMBER    0081	  26
-SHD				  NUMBER    0080	  25
-SHLTCH				  NUMBER    0082	  27
+SHCK				  NUMBER    00B1	  26
+SHD				  NUMBER    00B0	  25
+SHLTCH				  NUMBER    00B2	  27
 SINT				  CODE	    0023
 SM0				  BIT	      9F
 SM1				  BIT	      9E
@@ -238,7 +303,7 @@ T0				  BIT	      B4
 T1				  BIT	      B5
 TB8				  BIT	      9B
 TCON				  DATA	      88
-TEST				  CODE	    0023	  68
+TEST				  CODE	    0025	  69
 TF0				  BIT	      8D
 TF1				  BIT	      8F
 TH0				  DATA	      8C

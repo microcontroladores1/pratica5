@@ -22,15 +22,16 @@
 ; EQUATES
 ; ****************************************************************************
 
-SHD     equ     p0.0
-SHCK    equ     p0.1
-SHLTCH  equ     p0.2
+SHD     equ     p3.0
+SHCK    equ     p3.1
+SHLTCH  equ     p3.2
 
 ; ****************************************************************************
 ; Inicio
 ; ****************************************************************************
 Main:       call    KeyIn
             mov     b, acc
+            acall   Display
             ajmp    Main
 
 ; ****************************************************************************
@@ -98,6 +99,55 @@ Done:       cjne    r6, #0Bh, Done2   ; O codigo = 0Bh (11) ?
 Done2:      setb    c                ; C = 1 (tecla pressionada)
             mov     a, r6            ; Codigo no ACC
 Exit:       ret
+
+; ---------------------------------------------------------------------------
+; Display
+; ---------------------------------------------------------------------------
+; Imprime no display de 7 segmentos o digito do acumulador. Caso o valor seja
+; Maior que 9, a rotina faz nada.
+; ---------------------------------------------------------------------------
+Display:    push    acc         ; Salvo o ACC
+            add     a, #(not 9) ; Preparo para verificar se ACC > 9
+            pop     acc         ; Restauro o ACC
+
+            jc      Exit2       ; Acc > 9 ?
+            
+            acall   LKDisp      ; Nao: Boto a decodificacao do display no ACC
+
+            clr     SHLTCH      ; Trava o registrador
+
+            mov     r5, #8      ; Usa r5 como contador
+Here:       mov     c, acc.7    ; Pego o bit mais significativo do ACC
+            mov     SHD, c      ; Envio para o Shift Register
+            acall   CKPulse     ; Pulso de clock para entrar
+            rl      a           ; Rotaciono para pegar o proximo bit
+            djnz    r5, Here    
+
+            setb    SHLTCH      ; Libera o registrador
+
+Exit2:      ret
+
+; ---------------------------------------------------------------------------
+; LKDisp
+; ---------------------------------------------------------------------------
+; Look-up Table para decodificacao do display de 7 segmentos.
+; Retorna: A decodificacao no acumulador.
+; ---------------------------------------------------------------------------
+LKDisp:     mov     dptr, #DECODING ; Passa o endereco da tabela para o dptr
+            movc    a,@a+dptr       ; Acessa a Tabela
+
+            ret                     ; Retorna com o valor no ACC
+
+DECODING:    db  3Fh, 06h, 5Bh, 4Fh, 66h, 6Dh, 7Dh, 07h, 7Fh, 67h
+
+; ---------------------------------------------------------------------------
+; CKPulse
+; ---------------------------------------------------------------------------
+; Pulso de clock no registrador de deslocamento
+; ---------------------------------------------------------------------------
+CKPulse:    setb    SHCK
+            clr     SHCK
+            ret
 
 ; ****************************************************************************
             end
