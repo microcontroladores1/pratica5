@@ -1,0 +1,255 @@
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 1
+
+
+
+
+
+       MCS-51 Family Macro Assembler   A S E M - 5 1   V 1.3
+       =====================================================
+
+
+
+	Source File:	pratica5.asm
+	Object File:	pratica5.hex
+	List File:	pratica5.lst
+
+
+
+ Line  I  Addr  Code            Source
+
+    1:				; Pratica 5 : Interface de teclado matricial
+    2:				; Programador: Francisco Edno
+    3:				;
+    4:				; Sistema de Acesso
+    5:				;
+    6:				; O programa continuamente faz a leitura de um teclado matricial
+    7:				; na porta P2 e imprime em um display de 7 segmentos (Como feedback).
+    8:				; Apos a confirmacao de ENTER (#) os numeros digitados serao comparados
+    9:				; com a senha padrao em tabela, ou com a senha na e2prom. Senha de 4 digitos.
+   10:				;
+   11:				; O Codigo de interface com teclado matricial e baseado num exemplo do livro
+   12:				; do Scott Mackenzie.
+   13:				;
+   14:				; Teclado matricial:
+   15:				; C1: P2.1 | C2: P2.2 | C3: P2.3
+   16:				; L1: P2.4 | L2: P2.5 | L3: P2.6 | L4: P2.7
+   17:				;
+   18:				; Registrador de deslocamento:
+   19:				; SHD: P0.0 | SHCK: P0.1 | SHLTCH: P0.2
+   20:
+   21:				; ****************************************************************************
+   22:				; EQUATES
+   23:				; ****************************************************************************
+   24:
+   25:		B      0080	SHD     equ     p0.0
+   26:		B      0081	SHCK    equ     p0.1
+   27:		B      0082	SHLTCH  equ     p0.2
+   28:
+   29:				; ****************************************************************************
+   30:				; Inicio
+   31:				; ****************************************************************************
+   32:	  0000	12 00 08	Main:       call    KeyIn
+   33:	  0003	85 E0 F0	            mov     b, acc
+   34:	  0006	01 00		            ajmp    Main
+   35:
+   36:				; ****************************************************************************
+   37:				; SUB-ROTINAS
+   38:				; ****************************************************************************
+   39:
+   40:				; ----------------------------------------------------------------------------
+   41:				; KeyIn
+   42:				; ----------------------------------------------------------------------------
+   43:				; Faz a leitura do teclado com 'Software Debouncing' para o pressionar e o
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 2
+
+
+
+ Line  I  Addr  Code            Source
+
+   44:				; liberar da tecla (50 operacoes para cada).
+   45:				; ----------------------------------------------------------------------------
+   46:	  0008	7B 32		KeyIn:      mov     r3, #50     ; Contador para o debouncing
+   47:	  000A	12 00 1F	Back:       call    GetKey      ; Tecla pressionada?
+   48:	  000D	50 F9		            jnc     KeyIn       ; Nao: tentar ler denovo (Pode mudar)
+   49:	  000F	DB F9		            djnz    r3, Back    ; Sim: repete 50 vezes
+   50:	  0011	C0 E0		            push    acc         ; Salva o codigo da tecla
+   51:
+   52:	  0013	7B 32		Back2:      mov     r3, #50     ; Espera a tecla ser liberada novamente
+   53:	  0015	12 00 1F	Back3:      call    GetKey      ; Tecla pressionada?
+   54:	  0018	40 F9		            jc      Back2       ; Sim: Cotinue checkando
+   55:	  001A	DB F9		            djnz    r3, Back3   ; Nao: Repete 50 vezes
+   56:	  001C	D0 E0		            pop     acc         ; Recupera o codigo da tecla
+   57:	  001E	22		            ret                 ; Retorna
+   58:
+   59:				; ---------------------------------------------------------------------------
+   60:				; GetKey
+   61:				; ---------------------------------------------------------------------------
+   62:				; Pega o status do teclado
+   63:				; Retorna: C = 0 se nenhuma tecla foi pressionada
+   64:				;        : C = 1 e o codigo da tecla no ACC caso tenha sido pressionada
+   65:				; ---------------------------------------------------------------------------
+   66:	  001F	74 FD		GetKey:     mov     a, #0FDh         ; Comeca com a coluna 0
+   67:	  0021	7E 03		            mov     r6, #3           ; Usa R6 como contador
+   68:	  0023	F5 A0		Test:       mov     p2, a            ; Ativa uma coluna
+   69:	  0025	FF		            mov     r7, a            ; Salva ACC
+   70:	  0026	E5 A0		            mov     a, p2            ; Agora leio a porta novamente
+   71:	  0028	54 F0		            anl     a, #0F0h         ; Isolo as linhas
+   72:	  002A	B4 F0 07	            cjne    a, #0F0h, KeyHit ; Alguma linha ativa?
+   73:	  002D	EF		            mov     a, r7            ; Nao: va para a proxima coluna
+   74:	  002E	23		            rl      a
+   75:	  002F	DE F2		            djnz    r6, Test
+   76:	  0031	C3		            clr     c                ; Nenuma tecla pressionada :(
+   77:	  0032	80 19		            sjmp    Exit             ; Retorna com c = 0
+   78:
+   79:	  0034	FF		KeyHit:     mov     r7, a            ; Salvo em r7 o scan
+   80:	  0035	74 04		            mov     a, #4            ; Preparacao para o calculo da coluna
+   81:	  0037	C3		            clr     c
+   82:	  0038	9E		            subb    a, r6            ; 3 - R6 = numero da coluna (0:3)
+   83:	  0039	FE		            mov     r6, a            ; Salvo o numero da coluna em R6
+   84:	  003A	EF		            mov     a, r7            ; Restauro o que foi lido da P2
+   85:	  003B	C4		            swap    a                ; Boto as linhas no nibble menor
+   86:
+   87:	  003C	7D 04		            mov     r5, #4
+   88:	  003E	13		Again:      rrc     a                ; Rotaciona ate C = 0
+   89:	  003F	50 05		            jnc     Done             ; Done quando C = 0
+   90:	  0041	0E		            inc     r6
+   91:	  0042	0E		            inc     r6
+   92:	  0043	0E		            inc     r6
+   93:	  0044	DD F8		            djnz    r5, Again
+   94:
+   95:	  0046	BE 0B 02	Done:       cjne    r6, #0Bh, Done2   ; O codigo = 0Bh (11) ?
+   96:	  0049	7E 00		            mov     r6, #0           ; sim: O codigo e o 0
+   97:
+   98:	  004B	D3		Done2:      setb    c                ; C = 1 (tecla pressionada)
+   99:	  004C	EE		            mov     a, r6            ; Codigo no ACC
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 3
+
+
+
+ Line  I  Addr  Code            Source
+
+  100:	  004D	22		Exit:       ret
+  101:
+  102:				; ****************************************************************************
+  103:				            end
+  104:				; ****************************************************************************
+
+
+
+
+
+                     register banks used:  ---
+
+                     no errors
+
+
+
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 4
+
+
+
+
+
+	       L I S T   O F   S Y M B O L S
+	       =============================
+
+
+SYMBOL				  TYPE     VALUE	LINE
+------------------------------------------------------------
+??ASEM_51			  NUMBER    8051
+??VERSION			  NUMBER    0130
+AC				  BIT	      D6
+ACC				  DATA	      E0
+AGAIN				  CODE	    003E	  88
+B				  DATA	      F0
+BACK				  CODE	    000A	  47
+BACK2				  CODE	    0013	  52
+BACK3				  CODE	    0015	  53
+CY				  BIT	      D7
+DONE				  CODE	    0046	  95
+DONE2				  CODE	    004B	  98
+DPH				  DATA	      83
+DPL				  DATA	      82
+EA				  BIT	      AF
+ES				  BIT	      AC
+ET0				  BIT	      A9
+ET1				  BIT	      AB
+EX0				  BIT	      A8
+EX1				  BIT	      AA
+EXIT				  CODE	    004D	 100
+EXTI0				  CODE	    0003
+EXTI1				  CODE	    0013
+F0				  BIT	      D5
+GETKEY				  CODE	    001F	  66
+IE				  DATA	      A8
+IE0				  BIT	      89
+IE1				  BIT	      8B
+INT0				  BIT	      B2
+INT1				  BIT	      B3
+IP				  DATA	      B8
+IT0				  BIT	      88
+IT1				  BIT	      8A
+KEYHIT				  CODE	    0034	  79
+KEYIN				  CODE	    0008	  46
+MAIN				  CODE	    0000	  32
+OV				  BIT	      D2
+P				  BIT	      D0
+P0				  DATA	      80
+P1				  DATA	      90
+P2				  DATA	      A0
+P3				  DATA	      B0
+PCON				  DATA	      87
+PS				  BIT	      BC
+PSW				  DATA	      D0
+PT0				  BIT	      B9
+PT1				  BIT	      BB
+PX0				  BIT	      B8
+PX1				  BIT	      BA
+RB8				  BIT	      9A
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 5
+
+
+
+SYMBOL				  TYPE     VALUE	LINE
+------------------------------------------------------------
+RD				  BIT	      B7
+REN				  BIT	      9C
+RESET				  CODE	    0000
+RI				  BIT	      98
+RS0				  BIT	      D3
+RS1				  BIT	      D4
+RXD				  BIT	      B0
+SBUF				  DATA	      99
+SCON				  DATA	      98
+SHCK				  NUMBER    0081	  26
+SHD				  NUMBER    0080	  25
+SHLTCH				  NUMBER    0082	  27
+SINT				  CODE	    0023
+SM0				  BIT	      9F
+SM1				  BIT	      9E
+SM2				  BIT	      9D
+SP				  DATA	      81
+T0				  BIT	      B4
+T1				  BIT	      B5
+TB8				  BIT	      9B
+TCON				  DATA	      88
+TEST				  CODE	    0023	  68
+TF0				  BIT	      8D
+TF1				  BIT	      8F
+TH0				  DATA	      8C
+TH1				  DATA	      8D
+TI				  BIT	      99
+TIMER0				  CODE	    000B
+TIMER1				  CODE	    001B
+TL0				  DATA	      8A
+TL1				  DATA	      8B
+TMOD				  DATA	      89
+TR0				  BIT	      8C
+TR1				  BIT	      8E
+TXD				  BIT	      B1
+WR				  BIT	      B6
