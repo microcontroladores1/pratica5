@@ -46,21 +46,21 @@ ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. 
    26:		B      00B1	SHCK    equ     p3.1
    27:		B      00B2	SHLTCH  equ     p3.2
    28:
-   29:				; ****************************************************************************
-   30:				; Inicio
-   31:				; ****************************************************************************
-   32:	  0000	7C 04		Main:       mov     r4, #4   ; Usa r4 como contador
-   33:	  0002	12 00 0B	Loop:       call    KeyIn
-   34:	  0005	11 52		            acall   Display  ; Imprimo no display o valor do ACC
-   35:	  0007	DC F9		            djnz    r4, Loop
-   36:	  0009	01 00		            ajmp    Main
-   37:
-   38:				; ****************************************************************************
-   39:				; SUB-ROTINAS
-   40:				; ****************************************************************************
+   29:		N      0030	USRPSS  equ     30h  ; Senha no endereco 30h
+   30:
+   31:		B      00B3	LED_OK  equ     p3.3
+   32:		B      00B4	LED_LCK equ     p3.4
+   33:		B      00B5	BUZZER  equ     p3.5
+   34:
+   35:				; ****************************************************************************
+   36:				; Inicio
+   37:				; ****************************************************************************
+   38:	  0000	7C 04		Main:       mov     r4, #4   ; Usa r4 como contador
+   39:	  0002	12 00 2D	Loop:       call    KeyIn
+   40:	  0005	11 74		            acall   Display  ; Imprimo no display o valor do ACC
    41:
-   42:				; ----------------------------------------------------------------------------
-   43:				; KeyIn
+   42:	  0007	74 04		            mov     a, #4      ; Peso para calculo do indice
+   43:	  0009	9C		            subb    a, r4      ; Encontro o valor do indice
 
 ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 2
 
@@ -68,62 +68,62 @@ ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. 
 
  Line  I  Addr  Code            Source
 
-   44:				; ----------------------------------------------------------------------------
-   45:				; Faz a leitura do teclado com 'Software Debouncing' para o pressionar e o
-   46:				; liberar da tecla (50 operacoes para cada). Apenas retorna quando uma tecla
-   47:				; for pressionada.
-   48:				; Retorna: Codigo da tecla no Registrador B.
-   49:				; Usa: GetKey
-   50:				; Registradores: r3 (contador)
-   51:				; ----------------------------------------------------------------------------
-   52:	  000B	7B 32		KeyIn:      mov     r3, #50     ; Contador para o debouncing
-   53:	  000D	12 00 22	Back:       call    GetKey      ; Tecla pressionada?
-   54:	  0010	50 F9		            jnc     KeyIn       ; Nao: tentar ler denovo (Pode mudar)
-   55:	  0012	DB F9		            djnz    r3, Back    ; Sim: repete 50 vezes
-   56:	  0014	C0 F0		            push    b           ; Salva o codigo da tecla
-   57:
-   58:	  0016	7B 32		Back2:      mov     r3, #50     ; Espera a tecla ser liberada novamente
-   59:	  0018	12 00 22	Back3:      call    GetKey      ; Tecla pressionada?
-   60:	  001B	40 F9		            jc      Back2       ; Sim: Cotinue checkando
-   61:	  001D	DB F9		            djnz    r3, Back3   ; Nao: Repete 50 vezes
-   62:	  001F	D0 F0		            pop     b           ; Recupera o codigo da tecla
-   63:	  0021	22		            ret                 ; Retorna
-   64:
-   65:				; ---------------------------------------------------------------------------
-   66:				; GetKey
-   67:				; ---------------------------------------------------------------------------
-   68:				; Pega o status do teclado
-   69:				; Retorna: C = 0 se nenhuma tecla foi pressionada
-   70:				;        : C = 1 e o codigo da tecla no Registrador B caso tenha sido
-   71:				;          pressionada
-   72:				; Registradores: r5, r6, r7
-   73:				; ---------------------------------------------------------------------------
-   74:	  0022	74 FD		GetKey:     mov     a, #0FDh         ; Comeca com a coluna 0
-   75:	  0024	7E 03		            mov     r6, #3           ; Usa R6 como contador
-   76:	  0026	F5 A0		Test:       mov     p2, a            ; Ativa uma coluna
-   77:	  0028	FF		            mov     r7, a            ; Salva ACC
-   78:	  0029	E5 A0		            mov     a, p2            ; Agora leio a porta novamente
-   79:	  002B	54 F0		            anl     a, #0F0h         ; Isolo as linhas
-   80:	  002D	B4 F0 07	            cjne    a, #0F0h, KeyHit ; Alguma linha ativa?
-   81:	  0030	EF		            mov     a, r7            ; Nao: va para a proxima coluna
-   82:	  0031	23		            rl      a
-   83:	  0032	DE F2		            djnz    r6, Test
-   84:	  0034	C3		            clr     c                ; Nenuma tecla pressionada :(
-   85:	  0035	80 1A		            sjmp    Exit             ; Retorna com c = 0
-   86:
-   87:	  0037	FF		KeyHit:     mov     r7, a            ; Salvo em r7 o scan
-   88:	  0038	74 04		            mov     a, #4            ; Preparacao para o calculo da coluna
-   89:	  003A	C3		            clr     c
-   90:	  003B	9E		            subb    a, r6            ; 3 - R6 = numero da coluna (0:3)
-   91:	  003C	FE		            mov     r6, a            ; Salvo o numero da coluna em R6
-   92:	  003D	EF		            mov     a, r7            ; Restauro o que foi lido da P2
-   93:	  003E	C4		            swap    a                ; Boto as linhas no nibble menor
-   94:
-   95:	  003F	7D 04		            mov     r5, #4
-   96:	  0041	13		Again:      rrc     a                ; Rotaciona ate C = 0
-   97:	  0042	50 05		            jnc     Done             ; Done quando C = 0
-   98:	  0044	0E		            inc     r6
-   99:	  0045	0E		            inc     r6
+   44:	  000A	24 30		            add     a, #USRPSS ; Preparo para guardar o valor no vetor
+   45:	  000C	F8		            mov     r0, a      ; Coloco o endereco no r0 para acesso indireto
+   46:	  000D	A6 F0		            mov     @r0, b     ; Guardo o digito no vetor
+   47:
+   48:	  000F	DC F1		            djnz    r4, Loop
+   49:
+   50:	  0011	11 9F		            acall   CheckPsswd ; Checa se a senha que o usuario entrou esta ok
+   51:
+   52:	  0013	40 0A		            jc      PassOK     ; Senha correta?
+   53:	  0015	C2 B4		            clr     LED_LCK    ; nao: Liga o led indicativo de fechado
+   54:	  0017	C2 B5		            clr     BUZZER     ; liga o buzzer
+   55:	  0019	11 A9		            acall   BuzzTime   ; Tempo para o buzzer
+   56:	  001B	D2 B5		            setb    BUZZER     ; Desliga o Buzzer
+   57:	  001D	01 00		            ajmp    Main       ; Volta para o inicio
+   58:
+   59:	  001F	D2 B4		PassOK:     setb    LED_LCK    ; Desliga o led de fechado
+   60:	  0021	C2 B3		            clr     LED_OK     ; Liga o led de ok
+   61:	  0023	11 AA		            acall   OKTime     ; Tempo de aberto
+   62:	  0025	C2 B4		            clr     LED_LCK    ; Liga o led de fechado
+   63:	  0027	D2 B3		            setb    LED_OK     ; Desliga led de ok apos o tempo determinado
+   64:	  0029	D2 D5		            setb    f0         ; Seta a flag f0, informando que o usuario ja
+   65:				                               ; entrou com uma senha
+   66:
+   67:	  002B	01 00		            ajmp    Main
+   68:
+   69:				; ****************************************************************************
+   70:				; SUB-ROTINAS
+   71:				; ****************************************************************************
+   72:
+   73:				; ----------------------------------------------------------------------------
+   74:				; KeyIn
+   75:				; ----------------------------------------------------------------------------
+   76:				; Faz a leitura do teclado com 'Software Debouncing' para o pressionar e o
+   77:				; liberar da tecla (50 operacoes para cada). Apenas retorna quando uma tecla
+   78:				; for pressionada.
+   79:				; Retorna: Codigo da tecla no Registrador B.
+   80:				; Usa: GetKey
+   81:				; Registradores: r3 (contador)
+   82:				; ----------------------------------------------------------------------------
+   83:	  002D	7B 32		KeyIn:      mov     r3, #50     ; Contador para o debouncing
+   84:	  002F	12 00 44	Back:       call    GetKey      ; Tecla pressionada?
+   85:	  0032	50 F9		            jnc     KeyIn       ; Nao: tentar ler denovo (Pode mudar)
+   86:	  0034	DB F9		            djnz    r3, Back    ; Sim: repete 50 vezes
+   87:	  0036	C0 F0		            push    b           ; Salva o codigo da tecla
+   88:
+   89:	  0038	7B 32		Back2:      mov     r3, #50     ; Espera a tecla ser liberada novamente
+   90:	  003A	12 00 44	Back3:      call    GetKey      ; Tecla pressionada?
+   91:	  003D	40 F9		            jc      Back2       ; Sim: Cotinue checkando
+   92:	  003F	DB F9		            djnz    r3, Back3   ; Nao: Repete 50 vezes
+   93:	  0041	D0 F0		            pop     b           ; Recupera o codigo da tecla
+   94:	  0043	22		            ret                 ; Retorna
+   95:
+   96:				; ---------------------------------------------------------------------------
+   97:				; GetKey
+   98:				; ---------------------------------------------------------------------------
+   99:				; Pega o status do teclado
 
 ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 3
 
@@ -131,62 +131,62 @@ ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. 
 
  Line  I  Addr  Code            Source
 
-  100:	  0046	0E		            inc     r6
-  101:	  0047	DD F8		            djnz    r5, Again
-  102:
-  103:	  0049	BE 0B 02	Done:       cjne    r6, #0Bh, Done2   ; O codigo = 0Bh (11) ?
-  104:	  004C	7E 00		            mov     r6, #0           ; sim: O codigo e o 0
-  105:
-  106:	  004E	D3		Done2:      setb    c                ; C = 1 (tecla pressionada)
-  107:	  004F	8E F0		            mov     b, r6            ; Codigo no Registrador B
-  108:	  0051	22		Exit:       ret
-  109:
-  110:				; ---------------------------------------------------------------------------
-  111:				; Display
-  112:				; ---------------------------------------------------------------------------
-  113:				; Imprime no display de 7 segmentos o digito do registrador B. Caso o valor
-  114:				; seja Maior que 9, a rotina faz nada.
-  115:				; Registradores: r5
-  116:				; ---------------------------------------------------------------------------
-  117:	  0052	E5 F0		Display:    mov     a, b        ; Boto o valor da tecla no ACC para acessar TAB
-  118:	  0054	C0 E0		            push    acc         ; Salvo o ACC
-  119:	  0056	24 F6		            add     a, #(not 9) ; Preparo para verificar se ACC > 9
-  120:	  0058	D0 E0		            pop     acc         ; Restauro ACC
-  121:
-  122:	  005A	40 11		            jc      Exit2       ; Acc > 9 ?
-  123:
-  124:	  005C	11 6E		            acall   LKDisp      ; Nao: Boto a decodificacao do display no ACC
+  100:				; Retorna: C = 0 se nenhuma tecla foi pressionada
+  101:				;        : C = 1 e o codigo da tecla no Registrador B caso tenha sido
+  102:				;          pressionada
+  103:				; Registradores: r5, r6, r7
+  104:				; ---------------------------------------------------------------------------
+  105:	  0044	74 FD		GetKey:     mov     a, #0FDh         ; Comeca com a coluna 0
+  106:	  0046	7E 03		            mov     r6, #3           ; Usa R6 como contador
+  107:	  0048	F5 A0		Test:       mov     p2, a            ; Ativa uma coluna
+  108:	  004A	FF		            mov     r7, a            ; Salva ACC
+  109:	  004B	E5 A0		            mov     a, p2            ; Agora leio a porta novamente
+  110:	  004D	54 F0		            anl     a, #0F0h         ; Isolo as linhas
+  111:	  004F	B4 F0 07	            cjne    a, #0F0h, KeyHit ; Alguma linha ativa?
+  112:	  0052	EF		            mov     a, r7            ; Nao: va para a proxima coluna
+  113:	  0053	23		            rl      a
+  114:	  0054	DE F2		            djnz    r6, Test
+  115:	  0056	C3		            clr     c                ; Nenuma tecla pressionada :(
+  116:	  0057	80 1A		            sjmp    Exit             ; Retorna com c = 0
+  117:
+  118:	  0059	FF		KeyHit:     mov     r7, a            ; Salvo em r7 o scan
+  119:	  005A	74 04		            mov     a, #4            ; Preparacao para o calculo da coluna
+  120:	  005C	C3		            clr     c
+  121:	  005D	9E		            subb    a, r6            ; 3 - R6 = numero da coluna (0:3)
+  122:	  005E	FE		            mov     r6, a            ; Salvo o numero da coluna em R6
+  123:	  005F	EF		            mov     a, r7            ; Restauro o que foi lido da P2
+  124:	  0060	C4		            swap    a                ; Boto as linhas no nibble menor
   125:
-  126:	  005E	C2 B2		            clr     SHLTCH      ; Trava o registrador
-  127:
-  128:	  0060	7D 08		            mov     r5, #8      ; Usa r5 como contador
-  129:	  0062	A2 E7		Here:       mov     c, acc.7    ; Pego o bit mais significativo do ACC
-  130:	  0064	92 B0		            mov     SHD, c      ; Envio para o Shift Register
-  131:	  0066	11 86		            acall   CKPulse     ; Pulso de clock para entrar
-  132:	  0068	23		            rl      a           ; Rotaciono para pegar o proximo bit
-  133:	  0069	DD F7		            djnz    r5, Here
-  134:
-  135:	  006B	D2 B2		            setb    SHLTCH      ; Libera o registrador
+  126:	  0061	7D 04		            mov     r5, #4
+  127:	  0063	13		Again:      rrc     a                ; Rotaciona ate C = 0
+  128:	  0064	50 05		            jnc     Done             ; Done quando C = 0
+  129:	  0066	0E		            inc     r6
+  130:	  0067	0E		            inc     r6
+  131:	  0068	0E		            inc     r6
+  132:	  0069	DD F8		            djnz    r5, Again
+  133:
+  134:	  006B	BE 0B 02	Done:       cjne    r6, #0Bh, Done2   ; O codigo = 0Bh (11) ?
+  135:	  006E	7E 00		            mov     r6, #0           ; sim: O codigo e o 0
   136:
-  137:	  006D	22		Exit2:      ret
-  138:
-  139:				; ---------------------------------------------------------------------------
-  140:				; LKDisp
+  137:	  0070	D3		Done2:      setb    c                ; C = 1 (tecla pressionada)
+  138:	  0071	8E F0		            mov     b, r6            ; Codigo no Registrador B
+  139:	  0073	22		Exit:       ret
+  140:
   141:				; ---------------------------------------------------------------------------
-  142:				; Look-up Table para decodificacao do display de 7 segmentos.
-  143:				; Retorna: A decodificacao no acumulador.
-  144:				; ---------------------------------------------------------------------------
-  145:	  006E	90 00 73	LKDisp:     mov     dptr, #DECODING ; Passa o endereco da tabela para o dptr
-  146:	  0071	93		            movc    a,@a+dptr       ; Acessa a Tabela
-  147:
-  148:	  0072	22		            ret                     ; Retorna com o valor no ACC
-  149:
-  150:	  0073	3F 06 5B 4F	DECODING:   db  3Fh, 06h, 5Bh, 4Fh, 66h, 6Dh, 7Dh, 07h, 7Fh, 67h
-	  0077	66 6D 7D 07
-	  007B	7F 67
-  151:
-  152:				; ---------------------------------------------------------------------------
-  153:				; LKPsswd
+  142:				; Display
+  143:				; ---------------------------------------------------------------------------
+  144:				; Imprime no display de 7 segmentos o digito do registrador B. Caso o valor
+  145:				; seja Maior que 9, a rotina faz nada.
+  146:				; Registradores: r5
+  147:				; ---------------------------------------------------------------------------
+  148:	  0074	E5 F0		Display:    mov     a, b        ; Boto o valor da tecla no ACC para acessar TAB
+  149:	  0076	C0 E0		            push    acc         ; Salvo o ACC
+  150:	  0078	24 F6		            add     a, #(not 9) ; Preparo para verificar se ACC > 9
+  151:	  007A	D0 E0		            pop     acc         ; Restauro ACC
+  152:
+  153:	  007C	40 11		            jc      Exit2       ; Acc > 9 ?
+  154:
+  155:	  007E	11 90		            acall   LKDisp      ; Nao: Boto a decodificacao do display no ACC
 
 ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 4
 
@@ -194,29 +194,99 @@ ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. 
 
  Line  I  Addr  Code            Source
 
-  154:				; ---------------------------------------------------------------------------
-  155:				; Look-up Table para a senha padrao.
-  156:				; Retorna: A senha no ACC.
-  157:				; ---------------------------------------------------------------------------
-  158:	  007D	90 00 82	LKPsswd:    mov     dptr, #PASSWD ; Passa o endereco da tabela para o dptr
-  159:	  0080	93		            movc    a,@a+dptr     ; Acessa a tabela
-  160:
-  161:	  0081	22		            ret                   ; Retorna com o valor no ACC
-  162:
-  163:	  0082	02 06 00 05	PASSWD:     db  2, 6, 0, 5
-  164:
-  165:				; ---------------------------------------------------------------------------
-  166:				; CKPulse
-  167:				; ---------------------------------------------------------------------------
-  168:				; Pulso de clock no registrador de deslocamento
-  169:				; ---------------------------------------------------------------------------
-  170:	  0086	D2 B1		CKPulse:    setb    SHCK
-  171:	  0088	C2 B1		            clr     SHCK
-  172:	  008A	22		            ret
-  173:
-  174:				; ****************************************************************************
-  175:				            end
-  176:				; ****************************************************************************
+  156:
+  157:	  0080	C2 B2		            clr     SHLTCH      ; Trava o registrador
+  158:
+  159:	  0082	7D 08		            mov     r5, #8      ; Usa r5 como contador
+  160:	  0084	A2 E7		Here:       mov     c, acc.7    ; Pego o bit mais significativo do ACC
+  161:	  0086	92 B0		            mov     SHD, c      ; Envio para o Shift Register
+  162:	  0088	11 AC		            acall   CKPulse     ; Pulso de clock para entrar
+  163:	  008A	23		            rl      a           ; Rotaciono para pegar o proximo bit
+  164:	  008B	DD F7		            djnz    r5, Here
+  165:
+  166:	  008D	D2 B2		            setb    SHLTCH      ; Libera o registrador
+  167:
+  168:	  008F	22		Exit2:      ret
+  169:
+  170:				; ---------------------------------------------------------------------------
+  171:				; LKDisp
+  172:				; ---------------------------------------------------------------------------
+  173:				; Look-up Table para decodificacao do display de 7 segmentos.
+  174:				; Retorna: A decodificacao no acumulador.
+  175:				; ---------------------------------------------------------------------------
+  176:	  0090	90 00 95	LKDisp:     mov     dptr, #DECODING ; Passa o endereco da tabela para o dptr
+  177:	  0093	93		            movc    a,@a+dptr       ; Acessa a Tabela
+  178:
+  179:	  0094	22		            ret                     ; Retorna com o valor no ACC
+  180:
+  181:	  0095	3F 06 5B 4F	DECODING:   db  3Fh, 06h, 5Bh, 4Fh, 66h, 6Dh, 7Dh, 07h, 7Fh, 67h
+	  0099	66 6D 7D 07
+	  009D	7F 67
+  182:
+  183:				; ---------------------------------------------------------------------------
+  184:				; CheckPsswd
+  185:				; ---------------------------------------------------------------------------
+  186:				; Verifica se a senha que o usuario entrou esta correta. Caso uma senha
+  187:				; nao tenha sido fornecida (verifico f0) a rotina retorna C = 0.
+  188:				; Retorna: C = 1 caso esteja.
+  189:				;        : C = 0 caso nao esteja ou caso nenhuma senha tenha sido fornecida.
+  190:				; Registradores: r4
+  191:				; ---------------------------------------------------------------------------
+  192:	  009F			CheckPsswd:
+  193:	  009F	22		            ret
+  194:
+  195:				; ---------------------------------------------------------------------------
+  196:				; LKPsswd
+  197:				; ---------------------------------------------------------------------------
+  198:				; Look-Up Table para verificacao de senha padrao.
+  199:				; ---------------------------------------------------------------------------
+  200:	  00A0	90 00 A5	LKPsswd:    mov     dptr, #PASSWD
+  201:	  00A3	93		            movc    a, @a+dptr
+  202:
+  203:	  00A4	22		            ret
+  204:
+  205:	  00A5	02 06 00 05	PASSWD:     db  2, 6, 0, 5
+  206:
+  207:				; ---------------------------------------------------------------------------
+  208:				; BuzzTime
+  209:				; ---------------------------------------------------------------------------
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 5
+
+
+
+ Line  I  Addr  Code            Source
+
+  210:				; ---------------------------------------------------------------------------
+  211:	  00A9			BuzzTime:
+  212:	  00A9	22		            ret
+  213:
+  214:				; ---------------------------------------------------------------------------
+  215:				; OKTime
+  216:				; ---------------------------------------------------------------------------
+  217:				; ---------------------------------------------------------------------------
+  218:	  00AA			OKTime:
+  219:	  00AA	22		            ret
+  220:
+  221:				; ---------------------------------------------------------------------------
+  222:				; Delay
+  223:				; ---------------------------------------------------------------------------
+  224:				; ---------------------------------------------------------------------------
+  225:	  00AB			Delay:
+  226:	  00AB	22		            ret
+  227:
+  228:				; ---------------------------------------------------------------------------
+  229:				; CKPulse
+  230:				; ---------------------------------------------------------------------------
+  231:				; Pulso de clock no registrador de deslocamento
+  232:				; ---------------------------------------------------------------------------
+  233:	  00AC	D2 B1		CKPulse:    setb    SHCK
+  234:	  00AE	C2 B1		            clr     SHCK
+  235:	  00B0	22		            ret
+  236:
+  237:				; ****************************************************************************
+  238:				            end
+  239:				; ****************************************************************************
 
 
 
@@ -229,7 +299,7 @@ ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. 
 
 
 
-ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 5
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 6
 
 
 
@@ -245,17 +315,21 @@ SYMBOL				  TYPE     VALUE	LINE
 ??VERSION			  NUMBER    0130
 AC				  BIT	      D6
 ACC				  DATA	      E0
-AGAIN				  CODE	    0041	  96
+AGAIN				  CODE	    0063	 127
 B				  DATA	      F0
-BACK				  CODE	    000D	  53
-BACK2				  CODE	    0016	  58
-BACK3				  CODE	    0018	  59
-CKPULSE				  CODE	    0086	 170
+BACK				  CODE	    002F	  84
+BACK2				  CODE	    0038	  89
+BACK3				  CODE	    003A	  90
+BUZZER				  NUMBER    00B5	  33
+BUZZTIME			  CODE	    00A9	 211
+CHECKPSSWD			  CODE	    009F	 192
+CKPULSE				  CODE	    00AC	 233
 CY				  BIT	      D7
-DECODING			  CODE	    0073	 150
-DISPLAY				  CODE	    0052	 117
-DONE				  CODE	    0049	 103
-DONE2				  CODE	    004E	 106
+DECODING			  CODE	    0095	 181
+DELAY				  CODE	    00AB	 225
+DISPLAY				  CODE	    0074	 148
+DONE				  CODE	    006B	 134
+DONE2				  CODE	    0070	 137
 DPH				  DATA	      83
 DPL				  DATA	      82
 EA				  BIT	      AF
@@ -264,13 +338,13 @@ ET0				  BIT	      A9
 ET1				  BIT	      AB
 EX0				  BIT	      A8
 EX1				  BIT	      AA
-EXIT				  CODE	    0051	 108
-EXIT2				  CODE	    006D	 137
+EXIT				  CODE	    0073	 139
+EXIT2				  CODE	    008F	 168
 EXTI0				  CODE	    0003
 EXTI1				  CODE	    0013
 F0				  BIT	      D5
-GETKEY				  CODE	    0022	  74
-HERE				  CODE	    0062	 129
+GETKEY				  CODE	    0044	 105
+HERE				  CODE	    0084	 160
 IE				  DATA	      A8
 IE0				  BIT	      89
 IE1				  BIT	      8B
@@ -279,26 +353,30 @@ INT1				  BIT	      B3
 IP				  DATA	      B8
 IT0				  BIT	      88
 IT1				  BIT	      8A
-KEYHIT				  CODE	    0037	  87
-KEYIN				  CODE	    000B	  52
-LKDISP				  CODE	    006E	 145
-LKPSSWD				  CODE	    007D	 158
-LOOP				  CODE	    0002	  33
-MAIN				  CODE	    0000	  32
+KEYHIT				  CODE	    0059	 118
+KEYIN				  CODE	    002D	  83
+LED_LCK				  NUMBER    00B4	  32
+LED_OK				  NUMBER    00B3	  31
+LKDISP				  CODE	    0090	 176
+LKPSSWD				  CODE	    00A0	 200
+LOOP				  CODE	    0002	  39
+MAIN				  CODE	    0000	  38
+
+ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 7
+
+
+
+SYMBOL				  TYPE     VALUE	LINE
+------------------------------------------------------------
+OKTIME				  CODE	    00AA	 218
 OV				  BIT	      D2
 P				  BIT	      D0
 P0				  DATA	      80
 P1				  DATA	      90
 P2				  DATA	      A0
 P3				  DATA	      B0
-
-ASEM-51 V1.3                                         Copyright (c) 2002 by W.W. Heinz                                         PAGE 6
-
-
-
-SYMBOL				  TYPE     VALUE	LINE
-------------------------------------------------------------
-PASSWD				  CODE	    0082	 163
+PASSOK				  CODE	    001F	  59
+PASSWD				  CODE	    00A5	 205
 PCON				  DATA	      87
 PS				  BIT	      BC
 PSW				  DATA	      D0
@@ -328,7 +406,7 @@ T0				  BIT	      B4
 T1				  BIT	      B5
 TB8				  BIT	      9B
 TCON				  DATA	      88
-TEST				  CODE	    0026	  76
+TEST				  CODE	    0048	 107
 TF0				  BIT	      8D
 TF1				  BIT	      8F
 TH0				  DATA	      8C
@@ -342,4 +420,5 @@ TMOD				  DATA	      89
 TR0				  BIT	      8C
 TR1				  BIT	      8E
 TXD				  BIT	      B1
+USRPSS				  NUMBER    0030	  29
 WR				  BIT	      B6

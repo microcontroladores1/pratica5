@@ -26,13 +26,44 @@ SHD     equ     p3.0
 SHCK    equ     p3.1
 SHLTCH  equ     p3.2
 
+USRPSS  equ     30h  ; Senha no endereco 30h
+
+LED_OK  equ     p3.3
+LED_LCK equ     p3.4
+BUZZER  equ     p3.5
+
 ; ****************************************************************************
 ; Inicio
 ; ****************************************************************************
 Main:       mov     r4, #4   ; Usa r4 como contador
 Loop:       call    KeyIn
             acall   Display  ; Imprimo no display o valor do ACC
+
+            mov     a, #4      ; Peso para calculo do indice
+            subb    a, r4      ; Encontro o valor do indice
+            add     a, #USRPSS ; Preparo para guardar o valor no vetor
+            mov     r0, a      ; Coloco o endereco no r0 para acesso indireto
+            mov     @r0, b     ; Guardo o digito no vetor
+
             djnz    r4, Loop
+
+            acall   CheckPsswd ; Checa se a senha que o usuario entrou esta ok
+
+            jc      PassOK     ; Senha correta?
+            clr     LED_LCK    ; nao: Liga o led indicativo de fechado
+            clr     BUZZER     ; liga o buzzer
+            acall   BuzzTime   ; Tempo para o buzzer
+            setb    BUZZER     ; Desliga o Buzzer
+            ajmp    Main       ; Volta para o inicio
+
+PassOK:     setb    LED_LCK    ; Desliga o led de fechado
+            clr     LED_OK     ; Liga o led de ok
+            acall   OKTime     ; Tempo de aberto
+            clr     LED_LCK    ; Liga o led de fechado
+            setb    LED_OK     ; Desliga led de ok apos o tempo determinado
+            setb    f0         ; Seta a flag f0, informando que o usuario ja
+                               ; entrou com uma senha
+
             ajmp    Main
 
 ; ****************************************************************************
@@ -150,17 +181,49 @@ LKDisp:     mov     dptr, #DECODING ; Passa o endereco da tabela para o dptr
 DECODING:   db  3Fh, 06h, 5Bh, 4Fh, 66h, 6Dh, 7Dh, 07h, 7Fh, 67h
 
 ; ---------------------------------------------------------------------------
+; CheckPsswd
+; ---------------------------------------------------------------------------
+; Verifica se a senha que o usuario entrou esta correta. Caso uma senha
+; nao tenha sido fornecida (verifico f0) a rotina retorna C = 0.
+; Retorna: C = 1 caso esteja.
+;        : C = 0 caso nao esteja ou caso nenhuma senha tenha sido fornecida.
+; Registradores: r4
+; ---------------------------------------------------------------------------
+CheckPsswd:
+            ret
+
+; ---------------------------------------------------------------------------
 ; LKPsswd
 ; ---------------------------------------------------------------------------
-; Look-up Table para a senha padrao.
-; Retorna: A senha no ACC.
+; Look-Up Table para verificacao de senha padrao.
 ; ---------------------------------------------------------------------------
-LKPsswd:    mov     dptr, #PASSWD ; Passa o endereco da tabela para o dptr
-            movc    a,@a+dptr     ; Acessa a tabela
+LKPsswd:    mov     dptr, #PASSWD
+            movc    a, @a+dptr
 
-            ret                   ; Retorna com o valor no ACC
+            ret
 
 PASSWD:     db  2, 6, 0, 5
+
+; ---------------------------------------------------------------------------
+; BuzzTime
+; ---------------------------------------------------------------------------
+; ---------------------------------------------------------------------------
+BuzzTime:
+            ret
+
+; ---------------------------------------------------------------------------
+; OKTime
+; ---------------------------------------------------------------------------
+; ---------------------------------------------------------------------------
+OKTime:
+            ret
+
+; ---------------------------------------------------------------------------
+; Delay
+; ---------------------------------------------------------------------------
+; ---------------------------------------------------------------------------
+Delay:
+            ret
 
 ; ---------------------------------------------------------------------------
 ; CKPulse
