@@ -35,9 +35,10 @@ BUZZER  equ     p3.5
 ; ****************************************************************************
 ; Inicio
 ; ****************************************************************************
-Main:       mov     r4, #4   ; Usa r4 como contador
+            clr     LED_LCK    ; Fechado por padrao
+Main:       mov     r4, #4     ; Usa r4 como contador
 Loop:       call    KeyIn
-            acall   Display  ; Imprimo no display o valor do ACC
+            acall   Display    ; Imprimo no display o valor do ACC
 
             mov     a, #4      ; Peso para calculo do indice
             subb    a, r4      ; Encontro o valor do indice
@@ -207,22 +208,36 @@ PASSWD:     db  2, 6, 0, 5
 ; ---------------------------------------------------------------------------
 ; BuzzTime
 ; ---------------------------------------------------------------------------
+; Tempo de 1s para o buzzer
+; Registradores: r7
 ; ---------------------------------------------------------------------------
 BuzzTime:
+            mov     r7, #10
+Back5:      acall   Delay     ; Delay de 0.1s
+            djnz    r7, Back5 ; 10 X 0.1s = 1s
             ret
 
 ; ---------------------------------------------------------------------------
 ; OKTime
 ; ---------------------------------------------------------------------------
+; Tempo de 2s para liberar a entrada
+; Registradores: r7
 ; ---------------------------------------------------------------------------
-OKTime:
+OKTime:     mov     r7, #20   ; R7 como contador
+Back6:      acall   Delay     ; Delay de 0.1s
+            djnz    r7, Back6 ; 20 X 0.1s = 2s
             ret
 
 ; ---------------------------------------------------------------------------
 ; Delay
 ; ---------------------------------------------------------------------------
+; Delay de 0.1s
+; Registradores: r5, r6
 ; ---------------------------------------------------------------------------
-Delay:
+Delay:      mov     r5, #200
+Back4:      mov     r6, #250 
+            djnz    r6, $
+            djnz    r5, Back4
             ret
 
 ; ---------------------------------------------------------------------------
