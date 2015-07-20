@@ -42,7 +42,11 @@ Main:       call    KeyIn
 ; KeyIn
 ; ----------------------------------------------------------------------------
 ; Faz a leitura do teclado com 'Software Debouncing' para o pressionar e o
-; liberar da tecla (50 operacoes para cada).
+; liberar da tecla (50 operacoes para cada). Apenas retorna quando uma tecla
+; for pressionada.
+; Retorna: Codigo da tecla no ACC.
+; Usa: GetKey
+; Registradores: r3 (contador)
 ; ----------------------------------------------------------------------------
 KeyIn:      mov     r3, #50     ; Contador para o debouncing
 Back:       call    GetKey      ; Tecla pressionada?
@@ -63,6 +67,7 @@ Back3:      call    GetKey      ; Tecla pressionada?
 ; Pega o status do teclado
 ; Retorna: C = 0 se nenhuma tecla foi pressionada
 ;        : C = 1 e o codigo da tecla no ACC caso tenha sido pressionada
+; Registradores: r5, r6, r7
 ; ---------------------------------------------------------------------------
 GetKey:     mov     a, #0FDh         ; Comeca com a coluna 0
             mov     r6, #3           ; Usa R6 como contador
