@@ -25,6 +25,7 @@
 SHD     equ     p3.0
 SHCK    equ     p3.1
 SHLTCH  equ     p3.2
+MR      equ     p3.6
 
 USRPSS  equ     30h  ; Senha no endereco 30h
 
@@ -37,17 +38,26 @@ BUZZER  equ     p3.5
 ; ****************************************************************************
             clr     LED_LCK    ; Fechado por padrao
 Main:       mov     r4, #4     ; Usa r4 como contador
+
 Loop:       call    KeyIn
+            clr     MR
             acall   Display    ; Imprimo no display o valor do ACC
 
             mov     a, #4      ; Peso para calculo do indice
+            clr     c          ; Caso setada, r4 e subtraido de ACC + C
             subb    a, r4      ; Encontro o valor do indice
             add     a, #USRPSS ; Preparo para guardar o valor no vetor
             mov     r0, a      ; Coloco o endereco no r0 para acesso indireto
             mov     @r0, b     ; Guardo o digito no vetor
 
             djnz    r4, Loop
+            
+            acall   Delay
+            acall   Delay
+            acall   Delay
+            acall   Delay
 
+            setb    MR
             acall   CheckPsswd ; Checa se a senha que o usuario entrou esta ok
 
             jc      PassOK     ; Senha correta?
@@ -62,8 +72,6 @@ PassOK:     setb    LED_LCK    ; Desliga o led de fechado
             acall   OKTime     ; Tempo de aberto
             clr     LED_LCK    ; Liga o led de fechado
             setb    LED_OK     ; Desliga led de ok apos o tempo determinado
-            setb    f0         ; Seta a flag f0, informando que o usuario ja
-                               ; entrou com uma senha
 
             ajmp    Main
 
@@ -188,10 +196,29 @@ DECODING:   db  3Fh, 06h, 5Bh, 4Fh, 66h, 6Dh, 7Dh, 07h, 7Fh, 67h
 ; nao tenha sido fornecida (verifico f0) a rotina retorna C = 0.
 ; Retorna: C = 1 caso esteja.
 ;        : C = 0 caso nao esteja ou caso nenhuma senha tenha sido fornecida.
-; Registradores: r4
+; Registradores: r4, r5
 ; ---------------------------------------------------------------------------
-CheckPsswd:
-            ret
+CheckPsswd: mov     r4, #4     ; usa r4 como contador
+Back7:      mov     a, #4      ; bota o indice no acumulador 
+            clr     C
+            subb    a, r4      ; calcula o indice
+            push    acc        ; salva o indice
+
+            add     a, #USRPSS ; calcula endereco no vetor
+            mov     r0, a      ; salva o endereco da posicao do vetor em r0
+            mov     05h, @r0    ; salva o digito da senha em r5
+
+            pop     acc        ; recupera o indice
+            acall   LKPsswd    ; pego a senha padrao
+
+            cjne    a, 05h, Fail ; digito correto?
+            djnz    r4, Back7    ; sim: verifica o proximo digito
+
+            setb    c            ; seta a carry
+            ret                  ; retorna com C = 1
+
+Fail:       clr     c
+            ret                  ; retorna com C = 0
 
 ; ---------------------------------------------------------------------------
 ; LKPsswd
@@ -211,8 +238,7 @@ PASSWD:     db  2, 6, 0, 5
 ; Tempo de 1s para o buzzer
 ; Registradores: r7
 ; ---------------------------------------------------------------------------
-BuzzTime:
-            mov     r7, #10
+BuzzTime:   mov     r7, #10
 Back5:      acall   Delay     ; Delay de 0.1s
             djnz    r7, Back5 ; 10 X 0.1s = 1s
             ret
