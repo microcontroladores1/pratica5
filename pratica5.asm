@@ -29,9 +29,10 @@ SHLTCH  equ     p3.2
 ; ****************************************************************************
 ; Inicio
 ; ****************************************************************************
-Main:       call    KeyIn
-            mov     b, acc
-            acall   Display
+Main:       mov     r4, #4   ; Usa r4 como contador
+Loop:       call    KeyIn
+            acall   Display  ; Imprimo no display o valor do ACC
+            djnz    r4, Loop
             ajmp    Main
 
 ; ****************************************************************************
@@ -44,7 +45,7 @@ Main:       call    KeyIn
 ; Faz a leitura do teclado com 'Software Debouncing' para o pressionar e o
 ; liberar da tecla (50 operacoes para cada). Apenas retorna quando uma tecla
 ; for pressionada.
-; Retorna: Codigo da tecla no ACC.
+; Retorna: Codigo da tecla no Registrador B.
 ; Usa: GetKey
 ; Registradores: r3 (contador)
 ; ----------------------------------------------------------------------------
@@ -52,13 +53,13 @@ KeyIn:      mov     r3, #50     ; Contador para o debouncing
 Back:       call    GetKey      ; Tecla pressionada?
             jnc     KeyIn       ; Nao: tentar ler denovo (Pode mudar)
             djnz    r3, Back    ; Sim: repete 50 vezes
-            push    acc         ; Salva o codigo da tecla
+            push    b           ; Salva o codigo da tecla
 
 Back2:      mov     r3, #50     ; Espera a tecla ser liberada novamente
 Back3:      call    GetKey      ; Tecla pressionada?
             jc      Back2       ; Sim: Cotinue checkando
             djnz    r3, Back3   ; Nao: Repete 50 vezes
-            pop     acc         ; Recupera o codigo da tecla
+            pop     b           ; Recupera o codigo da tecla
             ret                 ; Retorna
 
 ; ---------------------------------------------------------------------------
@@ -66,7 +67,8 @@ Back3:      call    GetKey      ; Tecla pressionada?
 ; ---------------------------------------------------------------------------
 ; Pega o status do teclado
 ; Retorna: C = 0 se nenhuma tecla foi pressionada
-;        : C = 1 e o codigo da tecla no ACC caso tenha sido pressionada
+;        : C = 1 e o codigo da tecla no Registrador B caso tenha sido 
+;          pressionada
 ; Registradores: r5, r6, r7
 ; ---------------------------------------------------------------------------
 GetKey:     mov     a, #0FDh         ; Comeca com a coluna 0
@@ -102,18 +104,20 @@ Done:       cjne    r6, #0Bh, Done2   ; O codigo = 0Bh (11) ?
             mov     r6, #0           ; sim: O codigo e o 0
 
 Done2:      setb    c                ; C = 1 (tecla pressionada)
-            mov     a, r6            ; Codigo no ACC
+            mov     b, r6            ; Codigo no Registrador B
 Exit:       ret
 
 ; ---------------------------------------------------------------------------
 ; Display
 ; ---------------------------------------------------------------------------
-; Imprime no display de 7 segmentos o digito do acumulador. Caso o valor seja
-; Maior que 9, a rotina faz nada.
+; Imprime no display de 7 segmentos o digito do registrador B. Caso o valor 
+; seja Maior que 9, a rotina faz nada.
+; Registradores: r5
 ; ---------------------------------------------------------------------------
-Display:    push    acc         ; Salvo o ACC
+Display:    mov     a, b        ; Boto o valor da tecla no ACC para acessar TAB
+            push    acc         ; Salvo o ACC
             add     a, #(not 9) ; Preparo para verificar se ACC > 9
-            pop     acc         ; Restauro o ACC
+            pop     acc         ; Restauro ACC
 
             jc      Exit2       ; Acc > 9 ?
             
@@ -143,7 +147,20 @@ LKDisp:     mov     dptr, #DECODING ; Passa o endereco da tabela para o dptr
 
             ret                     ; Retorna com o valor no ACC
 
-DECODING:    db  3Fh, 06h, 5Bh, 4Fh, 66h, 6Dh, 7Dh, 07h, 7Fh, 67h
+DECODING:   db  3Fh, 06h, 5Bh, 4Fh, 66h, 6Dh, 7Dh, 07h, 7Fh, 67h
+
+; ---------------------------------------------------------------------------
+; LKPsswd
+; ---------------------------------------------------------------------------
+; Look-up Table para a senha padrao.
+; Retorna: A senha no ACC.
+; ---------------------------------------------------------------------------
+LKPsswd:    mov     dptr, #PASSWD ; Passa o endereco da tabela para o dptr
+            movc    a,@a+dptr     ; Acessa a tabela
+
+            ret                   ; Retorna com o valor no ACC
+
+PASSWD:     db  2, 6, 0, 5
 
 ; ---------------------------------------------------------------------------
 ; CKPulse
